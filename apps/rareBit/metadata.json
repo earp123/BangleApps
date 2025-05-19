@@ -3,7 +3,7 @@
   "name": "rareBit",
   "version": "0.10",
   "description": "Referee App for rareBit Flag integration and match timers",
-  "icon": "rareBit.img",
+  "icon": "rareBit.png",
   "src": "rareBit.app.js",
   "supports": ["BANGLEJS2"],
   "allow_emulator": true,
