@@ -6,7 +6,6 @@
   "icon": "rareBit.png",
   "src": "rareBit.app.js",
   "supports": ["BANGLEJS2"],
-  "allow_emulator": true,
   "storage": [
     {"name":"rarebit.app.js","url":"rareBit.img"}
   ]
