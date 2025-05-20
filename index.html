@@ -18,6 +18,77 @@
     <meta name="msapplication-TileColor" content="#000000">
     <meta name="theme-color" content="#000000">
     <title>rareBit for Bangle.js 2</title>
+    <style>
+      :root {
+        --primary-color: #000;
+        --bg-color: #000;
+        --text-color: #000;
+        --header-bg: #000;
+        --button-bg: #111;
+        --button-text: #000;
+        --border-color: #111;
+      }
+    
+      body {
+        background-color: var(--bg-color) !important;
+        color: var(--text-color) !important;
+      }
+    
+      .navbar-primary {
+        background-color: var(--header-bg) !important;
+        color: var(--text-color) !important;
+      }
+    
+      .navbar-brand div,
+      .navbar-brand,
+      h1, h2, h3, h4, p, span, label, a, .chip, .tooltip, .form-label {
+        color: var(--text-color) !important;
+      }
+    
+      .btn,
+      .form-input,
+      .form-select,
+      .dropdown .btn-link,
+      .input-group-btn,
+      .tab a {
+        background-color: var(--button-bg) !important;
+        color: var(--button-text) !important;
+        border-color: var(--border-color) !important;
+      }
+    
+      .btn-primary {
+        background-color: var(--button-bg) !important;
+        color: var(--button-text) !important;
+        border-color: var(--border-color) !important;
+      }
+    
+      .panel,
+      .panel-header,
+      .panel-body,
+      .tab-block,
+      .dropdown-container,
+      .form-group,
+      .hero,
+      .hero-body {
+        background-color: var(--bg-color) !important;
+        color: var(--text-color) !important;
+        border-color: var(--border-color) !important;
+      }
+    
+      .chip.active,
+      .chip:hover {
+        background-color: var(--button-bg) !important;
+        color: var(--button-text) !important;
+      }
+    
+      input::placeholder {
+        color: var(--text-color) !important;
+      }
+    
+      a {
+        color: var(--text-color) !important;
+      }
+    </style>
   </head>
   <body>
     <header class="navbar-primary navbar" style="background-color: black;">
