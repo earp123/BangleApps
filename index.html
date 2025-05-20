@@ -17,21 +17,26 @@
     <meta name="application-name" content="BangleApps">
     <meta name="msapplication-TileColor" content="#5755d9">
     <meta name="theme-color" content="#5755d9">
-    <title>rareBit for Bangle.js 2</title>
+    <title>Bangle.js App Loader</title>
   </head>
   <body>
-    <header class="navbar-primary navbar" style="background-color: black;">
-      <section class="navbar-section" style="display: flex; align-items: center;">
-        <a href="#" class="navbar-brand mr-2" style="display: flex; align-items: center; color: white;">
-          <img src="img/rarebit-logo.png" alt="rareBit logo" style="height: 40px; margin-right: 10px;">
-          <div style="font-size: 1.5rem; font-weight: bold;">rareBit</div>
-        </a>
+    <header class="navbar-primary navbar">
+      <section class="navbar-section" >
+        <a href="https://banglejs.com" target="_blank" class="navbar-brand mr-2"><img src="img/banglejs-logo-small.svg" alt="Bangle.js">
+        <div>App Loader</div></a>
+        <!-- <a href="#" class="btn btn-link">...</a> -->
       </section>
       <section class="navbar-section">
         <button class="btn" id="connectmydevice">Connect</button>
       </section>
+      <!--<section class="navbar-section">
+        <div class="input-group input-inline">
+          <input class="form-input" type="text" placeholder="search">
+          <button class="btn btn-primary input-group-btn">Search</button>
+        </div>
+      </section>-->
     </header>
-    
+
     <div class="container" style="padding-top:4px">
       <p id="requireHTTPS" class="hidden">
         <b>STOP!</b> This page <b>must</b> be served over HTTPS. Please <a>reload this page via HTTPS</a>.
@@ -67,9 +72,38 @@
             <li class="menu-item"><a dt="BANGLEJS2">Bangle.js 2</a></li>
           </ul>
         </div>
-        
+        <div class="filter-nav">
+          <label class="chip active" filterid="" data-tooltip="Show all apps">All</label>
+          <label class="chip tooltip" filterid="clock" data-tooltip="To tell the time!">Clocks</label>
+          <label class="chip tooltip" filterid="launch" data-tooltip="Choose which apps to launch">Launchers</label>
+          <label class="chip tooltip" filterid="game" data-tooltip="Have fun!">Games</label>
+          <label class="chip tooltip" filterid="tool" data-tooltip="Useful applications">Tools</label>
+          <label class="chip tooltip" filterid="textinput" data-tooltip="To allow you to enter text">Keyboards</label>
+          <label class="chip tooltip" filterid="widget" data-tooltip="Appear in the top bar of Bangle.js apps">Widgets</label>
+          <label class="chip tooltip" filterid="bluetooth" data-tooltip="Using Bluetooth Functionality">Bluetooth</label>
+          <label class="chip tooltip" filterid="outdoors" data-tooltip="For outdoor use">Outdoors</label>
+          <label class="chip tooltip" filterid="ram" data-tooltip="Apps that don't save anything to flash memory">Online</label>
+          <label class="chip tooltip" filterid="clkinfo" data-tooltip="Info displayed on clocks, or clocks with info">Clock Info</label>
+          <label class="chip tooltip" filterid="health" data-tooltip="Apps for your health">Health</label>
+          <label class="chip tooltip" filterid="fonts" data-tooltip="Extra fonts for non-latin languages">Fonts</label>
+          <label class="chip tooltip" filterid="favourites" data-tooltip="Apps that you've liked ❤️">Favourites</label>
+        </div>
+        <div class="sort-nav hidden">
+          <span>Sort by:</span>
+          <label class="chip active" sortid="">None</label>
+          <label class="chip hidden tooltip" sortid="created"  data-tooltip="Most recent apps">New</label>
+          <label class="chip hidden tooltip" sortid="modified" data-tooltip="Most recently changed">Updated</label>
+          <label class="chip hidden tooltip" sortid="installs" data-tooltip="Most installed by users">Installed</label>
+          <label class="chip hidden tooltip" sortid="favourites" data-tooltip="Most liked by users">Favourited</label>
+        </div>
+      </div>
+
       <div class="panel" style="clear:both">
         <div class="panel-header">
+        <div class="input-group" id="searchform">
+            <input class="form-input" type="text" placeholder="Keywords...">
+            <button class="btn btn-primary input-group-btn">Search</button>
+        </div>
         </div>
         <div class="panel-body columns"><!-- apps go here --></div>
       </div>
