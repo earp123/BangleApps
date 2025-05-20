@@ -141,6 +141,24 @@ function setSavedDeviceId(deviceId) {
   localStorage.setItem("deviceId", deviceId);
 }
 
+function renderCustomTabs(apps) {
+  const utilitiesIDs = ["antonclk", "boot", "setting", "widbt", "widid", "widlock"];
+  const rarebitIDs = ["rareBit"];
+
+  const utilContainer = document.getElementById("utilities-apps");
+  const rarebitContainer = document.getElementById("rarebit-apps");
+
+  apps.forEach(app => {
+    if (utilitiesIDs.includes(app.id)) {
+      utilContainer.appendChild(AppLibrary.renderApp(app));
+    }
+    if (rarebitIDs.includes(app.id)) {
+      rarebitContainer.appendChild(AppLibrary.renderApp(app));
+    }
+  });
+}
+
+
 // At boot, show a window to choose which type of device you have...
 window.addEventListener('load', (event) => {
   let deviceId = getSavedDeviceId()
@@ -348,6 +366,8 @@ function onAppJSONLoaded() {
   let deviceId = getSavedDeviceId()
   if (deviceId !== undefined)
     filterAppsForDevice(deviceId);
+
+  renderCustomTabs(appJSON); // <-- inject here
 
   /* Disable external screenshot loading - seems we probably have enough
   screenshots added manually in apps.json */
