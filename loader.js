@@ -149,10 +149,10 @@ function renderCustomTabs(apps) {
 
   apps.forEach(app => {
     if (utilitiesIDs.includes(app.id)) {
-      utilContainer.appendChild(AppLibrary.renderApp(app));
+      AppLibrary.addLibraryApp(app, utilContainer);
     }
     if (rarebitIDs.includes(app.id)) {
-      rarebitContainer.appendChild(AppLibrary.renderApp(app));
+      AppLibrary.addLibraryApp(app, rarebitContainer);
     }
   });
 }
