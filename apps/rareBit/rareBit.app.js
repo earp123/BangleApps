@@ -11,8 +11,10 @@ let elapsed = 0;
 let timer = null;
 let isRunning = false;
 let finished = false;
+
 var AR1chrc, AR2chrc;
 let AR1 = {}, AR2 = {};
+
 let AR1gatt = {
   connected: false,
   handle: undefined
@@ -22,8 +24,6 @@ let AR2gatt = {
   connected: false,
   handle:undefined
 };
-
-
 
 function formatTime(secs) {
   let mins = Math.floor(secs / 60);
@@ -191,7 +191,7 @@ function getDevice(){
           }, 4000);
           draw();
           });
-        return AR1gatt.connect({phy:"coded", minInterval:15, maxInterval:30});
+        return AR1gatt.connect({phy:"coded", slaveLatency:60, minInterval:200, maxInterval:250});
         }
       else if (AR2gatt.handle == undefined) {
         AR2 = device;
@@ -206,7 +206,7 @@ function getDevice(){
           }, 4000);
           draw();
           });
-        return AR2gatt.connect({phy:"coded", minInterval:15, maxInterval:30});
+        return AR2gatt.connect({phy:"coded",  slaveLatency:60, minInterval:200, maxInterval:250});
         }
     }).then(function(gatt){
       if(gatt == AR1gatt){
@@ -255,7 +255,7 @@ function getDevice(){
 function initUI()
 {
   g.clear();
-
+  Bangle.setUI();
   Bangle.setUI({
       mode:"custom",
       btn: function() {
@@ -272,5 +272,6 @@ function initUI()
 initUI();
 //Bangle.setLCDPower(1);
 Bangle.setLCDTimeout(0);
+NRF.setTxPower(8);
 initScan();
 //load("rareBit.app.js");
