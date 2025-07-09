@@ -11,6 +11,8 @@ let elapsed = 0;
 let timer = null;
 let isRunning = false;
 let finished = false;
+let toggle = false;
+let flickerCount = 0;
 
 var AR1chrc, AR2chrc;
 let AR1 = {}, AR2 = {};
@@ -164,93 +166,25 @@ function drawAR2()
 
 function initScan()
 {
-  getDevice();
-
-  let scan = setInterval(function(){
-    if (radioLock){
-      getDevice();
-      clearInterval(scan);
-    }
-  }, 200);
+  let scan = setInterval(() => {
+    NRF.setScan(function(d) {
+      //console.log(d);
+      NRF.setScan();
+      Bangle.buzz(3000, 1);
+//      let flicker = setInterval(() => {
+//        Bangle.setBacklight(toggle);
+//        toggle = !toggle;
+//        flickerCount++;
+//        if (flickerCount >= 40) {
+//          clearInterval(flicker);
+//          Bangle.setBacklight(true);
+//          flickerCount = 0;
+//        }
+//      }, 100);
+    }, {phy:"coded", filters:[{ namePrefix:'rareBit'}]});
+  }, 4000);
 }
 
-function getDevice(){
-    radioLock = false; //print(radioLock);
-    NRF.requestDevice({phy:"coded", filters:[{ namePrefix:'rareBit'}]})
-      .then(function(device) {
-      if (AR1gatt.handle == undefined) {
-        AR1 = device;
-        AR1gatt = device.gatt;
-        AR1.on('gattserverdisconnected', function(reason) {
-          console.log(device.id, " Disconnected ",reason);
-          let discon_cb = setInterval(function(){
-            if (AR1gatt.handle == undefined){
-              getDevice();
-            }
-            else clearInterval(discon_cb);
-          }, 4000);
-          draw();
-          });
-        return AR1gatt.connect({phy:"coded", slaveLatency:60, minInterval:200, maxInterval:250});
-        }
-      else if (AR2gatt.handle == undefined) {
-        AR2 = device;
-        AR2gatt = device.gatt;
-        AR2.on('gattserverdisconnected', function(reason) {
-          console.log(device.id, " Disconnected ",reason);
-          let discon_cb = setInterval(function(){
-            if (AR2gatt.handle == undefined){
-              getDevice();
-            }
-            else clearInterval(discon_cb);
-          }, 4000);
-          draw();
-          });
-        return AR2gatt.connect({phy:"coded",  slaveLatency:60, minInterval:200, maxInterval:250});
-        }
-    }).then(function(gatt){
-      if(gatt == AR1gatt){
-        AR1gatt.getPrimaryService(pag_svc).then(function(s){
-        return s.getCharacteristic(pag_chrc).then(function(c){
-          AR1chrc = c;
-          AR1chrc.on('characteristicvaluechanged', function(event) {
-            console.log("-> ",event.target.service.device.id);
-            startFlashingAR(1);
-            Bangle.buzz(3000, 1);
-          });
-          return AR1chrc.startNotifications();
-        }).then(function(d) {
-            console.log("Waiting for notifications");
-            radioLock = true;
-            drawAR1();
-          }).catch(function() {
-            console.log("Something's broken.");
-            radioLock = true;
-          });
-        });
-      }
-      else if (gatt == AR2gatt){
-        AR2gatt.getPrimaryService(pag_svc).then(function(s){
-        return s.getCharacteristic(pag_chrc).then(function(k){
-          AR2chrc = k;
-          AR2chrc.on('characteristicvaluechanged', function(event) {
-            console.log("-> ", event.target.service.device.id);
-            startFlashingAR(2);
-            Bangle.buzz(3000, 1);
-          });
-          return AR2chrc.startNotifications();
-        }).then(function(d) {
-          console.log("Waiting for notifications");
-          radioLock = true;
-          drawAR2();
-        }).catch(function() {
-          console.log("Something's broken.");
-          radioLock = true;
-        });
-        });
-      }
-    }).catch(function(f){print("No devices found");});
-}
 
 function initUI()
 {
