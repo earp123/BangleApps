@@ -17,15 +17,10 @@ let flickerCount = 0;
 var AR1chrc, AR2chrc;
 let AR1 = {}, AR2 = {};
 
-let AR1gatt = {
-  connected: false,
-  handle: undefined
-};
+// Two AR slots (store advertiser MACs)
+let AR1addr = null;
+let AR2addr = null;
 
-let AR2gatt = {
-  connected: false,
-  handle:undefined
-};
 
 function formatTime(secs) {
   let mins = Math.floor(secs / 60);
@@ -48,8 +43,8 @@ function draw() {
   g.setColor("#000");
   g.drawString(formatTime(elapsed), g.getWidth() / 2, g.getHeight() / 2 + 60);
 
-  if (AR1gatt.connected) drawAR1();
-  if (AR2gatt.connected) drawAR2();
+  if (AR1addr != null) drawAR1();
+  if (AR2addr != null) drawAR2();
 
 }
 
@@ -164,25 +159,105 @@ function drawAR2()
   g.drawString("AR2", g.getWidth() - 5, 5);
 }
 
-function initScan()
-{
-  let scan = setInterval(() => {
-    NRF.setScan(function(d) {
-      //console.log(d);
-      NRF.setScan();
-      Bangle.buzz(3000, 1);
-//      let flicker = setInterval(() => {
-//        Bangle.setBacklight(toggle);
-//        toggle = !toggle;
-//        flickerCount++;
-//        if (flickerCount >= 40) {
-//          clearInterval(flicker);
-//          Bangle.setBacklight(true);
-//          flickerCount = 0;
-//        }
-//      }, 100);
-    }, {phy:"coded", filters:[{ namePrefix:'rareBit'}]});
-  }, 4000);
+// Top-level (outside initScan)
+let seenAddrs = []; // list of unique MACs we've seen
+
+function normMac(id) {
+  // setScan gives d.id as the advertiser address; keep it robust if suffix exists
+  return (id || "").split(" ")[0];
+}
+
+function initScan() {
+  
+
+  // Haptics
+  const BUZZ_KNOWN_MS = 4000;
+
+  // Double-tap pattern for "added"
+  function buzzAdded() {
+    // two short pulses
+    return Bangle.buzz(120, 1).then(() => new Promise(r => setTimeout(r, 120)))
+      .then(() => Bangle.buzz(120, 1));
+  }
+
+  // Optional: prevent continuous buzzing if ads are frequent
+  const BUZZ_COOLDOWN_MS = 4500; // slightly > BUZZ_KNOWN_MS
+  let lastBuzzAt = 0;
+
+  function buzzAllowed(fn) {
+    const now = Date.now();
+    if (now - lastBuzzAt < BUZZ_COOLDOWN_MS) return;
+    lastBuzzAt = now;
+    fn();
+  }
+  
+  // AR1: long alert
+  function buzzKnownAR1() {
+    Bangle.buzz(BUZZ_KNOWN_MS, 1);
+  }
+
+  // AR2: 15 very short taps
+  function buzzKnownAR2() {
+    let count = 0;
+    const taps = 15;
+
+    const i = setInterval(() => {
+      Bangle.buzz(60, 1);
+      count++;
+      if (count >= taps) clearInterval(i);
+    }, 120); // short gap between taps
+  }
+
+  function start() {
+    NRF.setScan(); // ensure only one scan is active
+
+    NRF.setScan(function (d) {
+      const mac = normMac(d.id);
+      if (!mac) return;
+
+      // If it's one of our saved devices, do the long alert
+      if (mac === AR1addr)
+      {
+        buzzAllowed(buzzKnownAR1);
+        return;
+      }
+      else if (mac === AR2addr) {
+        buzzAllowed(buzzKnownAR2);
+        return;
+      }
+
+       // New devices
+      if (!AR1addr) {
+        AR1addr = mac;
+        if (seenAddrs.indexOf(mac) === -1) seenAddrs.push(mac);
+
+        lastBuzzAt = Date.now(); // suppress immediate known-buzz
+        buzzAdded();
+        draw();
+        return;
+      }
+
+      if (!AR2addr) {
+        AR2addr = mac;
+        if (seenAddrs.indexOf(mac) === -1) seenAddrs.push(mac);
+
+        lastBuzzAt = Date.now(); // suppress immediate known-buzz
+        buzzAdded();
+        draw();
+        return;
+      }
+
+      // Third unique device: ignore
+    }, {
+      phy: "coded",
+      active: false, // passive scan
+      filters: [{
+        services: [pag_svc]
+      }]
+    });
+  }
+
+  start();
 }
 
 
