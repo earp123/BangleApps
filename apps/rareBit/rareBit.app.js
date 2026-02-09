@@ -13,9 +13,11 @@ let isRunning = false;
 let finished = false;
 let toggle = false;
 let flickerCount = 0;
-
-var AR1chrc, AR2chrc;
-let AR1 = {}, AR2 = {};
+let lock=false;
+let AR1flash = false;
+let AR2flash = false;
+let AR1lock = true;
+let AR2lock = true;
 
 // Two AR slots (store advertiser MACs)
 let AR1addr = null;
@@ -29,7 +31,7 @@ function formatTime(secs) {
 }
 
 function draw() {
-  g.clear();
+  g.clearRect(0, 40, g.getWidth(), g.getHeight());
 
   // Count Down
   g.setFontAnton(1);
@@ -43,8 +45,28 @@ function draw() {
   g.setColor("#000");
   g.drawString(formatTime(elapsed), g.getWidth() / 2, g.getHeight() / 2 + 60);
 
-  if (AR1addr != null) drawAR1();
-  if (AR2addr != null) drawAR2();
+  if (AR1addr != null && AR1lock){
+    drawAR1();
+    AR1lock = false;
+  }
+  if (AR2addr != null && AR2lock){
+    drawAR2();
+    AR2lock = false;
+  }
+  //TODO flash the AR
+
+  //if(AR1flash){
+   // let count = 5;
+    //flashAR1(count%2);
+    //count--;
+    //if(count==0) AR1flash=false;
+  //}
+  //if(AR2flash){
+    //let count = 5;
+    //flashAR2(count%2);
+    //count--;
+    //if(count==0) AR2flash=false;
+ // }
 
 }
 
@@ -138,7 +160,7 @@ function flashAR2(state) {
 function startFlashingAR(AR) {
   let state = false;
   let count = 0;
-  const maxFlashes = 3000 / 200; // 15 flashes (every 200ms for 3s)
+  const maxFlashes = 3000 / 500; // 15 flashes (every 200ms for 3s)
 
   const interval = setInterval(() => {
     if      (AR == 1) flashAR1(state);
@@ -148,7 +170,7 @@ function startFlashingAR(AR) {
     if (count >= maxFlashes) {
       clearInterval(interval);
     }
-  }, 200);
+  }, 500);
 }
 
 function drawAR2()
@@ -167,51 +189,49 @@ function normMac(id) {
   return (id || "").split(" ")[0];
 }
 
+// Double-tap pattern for "added"
+function buzzAdded() {
+  // two short pulses
+  return Bangle.buzz(120, 1).then(() => new Promise(r => setTimeout(r, 120)))
+    .then(() => Bangle.buzz(120, 1));
+}
+
+// Haptics
+const BUZZ_KNOWN_MS = 4000;
+const BUZZ_COOLDOWN_MS = 6000; // slightly > BUZZ_KNOWN_MS
+let lastBuzzAt = 0;
+
+function buzzAllowed(fn) {
+  const now = Date.now();
+  if (now - lastBuzzAt < BUZZ_COOLDOWN_MS) return;
+  lastBuzzAt = now;
+  fn();
+}
+// AR1: long alert
+function buzzKnownAR1() {
+  Bangle.buzz(BUZZ_KNOWN_MS, 1);
+}
+
+// AR2: 15 very short taps
+function buzzKnownAR2() {
+  let count = 0;
+  const taps = 20;
+
+  const i = setInterval(() => {
+    Bangle.buzz(60, 1);
+    count++;
+    if (count >= taps) clearInterval(i);
+  }, 120); // short gap between taps
+}
+
 function initScan() {
-  
-
-  // Haptics
-  const BUZZ_KNOWN_MS = 4000;
-
-  // Double-tap pattern for "added"
-  function buzzAdded() {
-    // two short pulses
-    return Bangle.buzz(120, 1).then(() => new Promise(r => setTimeout(r, 120)))
-      .then(() => Bangle.buzz(120, 1));
-  }
-
-  // Optional: prevent continuous buzzing if ads are frequent
-  const BUZZ_COOLDOWN_MS = 4500; // slightly > BUZZ_KNOWN_MS
-  let lastBuzzAt = 0;
-
-  function buzzAllowed(fn) {
-    const now = Date.now();
-    if (now - lastBuzzAt < BUZZ_COOLDOWN_MS) return;
-    lastBuzzAt = now;
-    fn();
-  }
-  
-  // AR1: long alert
-  function buzzKnownAR1() {
-    Bangle.buzz(BUZZ_KNOWN_MS, 1);
-  }
-
-  // AR2: 15 very short taps
-  function buzzKnownAR2() {
-    let count = 0;
-    const taps = 15;
-
-    const i = setInterval(() => {
-      Bangle.buzz(60, 1);
-      count++;
-      if (count >= taps) clearInterval(i);
-    }, 120); // short gap between taps
-  }
 
   function start() {
     NRF.setScan(); // ensure only one scan is active
 
     NRF.setScan(function (d) {
+      if(lock) return;
+      lock = true;
       const mac = normMac(d.id);
       if (!mac) return;
 
@@ -219,10 +239,14 @@ function initScan() {
       if (mac === AR1addr)
       {
         buzzAllowed(buzzKnownAR1);
+        AR1flash = true;
+        lock=false;
         return;
       }
       else if (mac === AR2addr) {
         buzzAllowed(buzzKnownAR2);
+        AR2flash = true;
+        lock=false;
         return;
       }
 
@@ -234,6 +258,7 @@ function initScan() {
         lastBuzzAt = Date.now(); // suppress immediate known-buzz
         buzzAdded();
         draw();
+        lock=false;
         return;
       }
 
@@ -244,8 +269,10 @@ function initScan() {
         lastBuzzAt = Date.now(); // suppress immediate known-buzz
         buzzAdded();
         draw();
+        lock = false;
         return;
-      }
+      } 
+      lock=false;
 
       // Third unique device: ignore
     }, {
