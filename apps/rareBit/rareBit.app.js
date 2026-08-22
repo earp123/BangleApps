@@ -4,25 +4,30 @@ Graphics.prototype.setFontAnton = function(scale) {
 };
 
 const pag_svc = "23210001-28d5-4b7b-bad0-7dee1eee1b6d";
-const pag_chrc = "23210002-28d5-4b7b-bad0-7dee1eee1b6d";
+
 let setMinutes = 45;
-let remaining = setMinutes * 60;
-let elapsed = 0;
-let timer = null;
 let isRunning = false;
-let finished = false;
-let toggle = false;
-let flickerCount = 0;
-let lock=false;
-let AR1flash = false;
-let AR2flash = false;
-let AR1lock = true;
-let AR2lock = true;
+let startTime = null;  // Date.now() when the timer was last (re)started
+let elapsedBase = 0;   // ms accumulated in previous run segments (for pause/resume)
+let timeUpBuzzed = false;
+let drawTimer = null;
+let buzzTimer = null;
+let flashTimers = [null, null];
+let AR1shown = false;
+let AR2shown = false;
 
 // Two AR slots (store advertiser MACs)
 let AR1addr = null;
 let AR2addr = null;
 
+// x position of the AR1 label - clear of the back icon in the top-left corner
+const AR1_X = 30;
+
+function getElapsed() {
+  let ms = elapsedBase;
+  if (isRunning) ms += Date.now() - startTime;
+  return Math.floor(ms / 1000);
+}
 
 function formatTime(secs) {
   let mins = Math.floor(secs / 60);
@@ -31,6 +36,10 @@ function formatTime(secs) {
 }
 
 function draw() {
+  let elapsed = getElapsed();
+  let remaining = setMinutes * 60 - elapsed;
+  if (remaining < 0) remaining = 0;
+
   g.clearRect(0, 40, g.getWidth(), g.getHeight());
 
   // Count Down
@@ -39,86 +48,73 @@ function draw() {
   g.setColor("#000");
   g.drawString(formatTime(remaining), g.getWidth() / 2, g.getHeight() / 2);
 
-  // Count Up
+  // Count Up - keeps going past 00:00 (stoppage time)
   g.setFont("6x8", 4);
   g.setFontAlign(0, 0);
   g.setColor("#000");
   g.drawString(formatTime(elapsed), g.getWidth() / 2, g.getHeight() / 2 + 60);
 
-  if (AR1addr != null && AR1lock){
+  if (AR1addr != null && !AR1shown) {
     drawAR1();
-    AR1lock = false;
+    AR1shown = true;
   }
-  if (AR2addr != null && AR2lock){
+  if (AR2addr != null && !AR2shown) {
     drawAR2();
-    AR2lock = false;
+    AR2shown = true;
   }
-  //TODO flash the AR
-
-  //if(AR1flash){
-   // let count = 5;
-    //flashAR1(count%2);
-    //count--;
-    //if(count==0) AR1flash=false;
-  //}
-  //if(AR2flash){
-    //let count = 5;
-    //flashAR2(count%2);
-    //count--;
-    //if(count==0) AR2flash=false;
- // }
-
 }
 
 function tick() {
-  if (remaining > 0) {
-    remaining--;
-    elapsed++;
-    draw();
+  if (isRunning && !timeUpBuzzed && getElapsed() >= setMinutes * 60) {
+    timeUpBuzzed = true;
+    Bangle.buzz(); // full time - the count-up carries on as stoppage time
   }
-  else if (remaining == 0) {
-    clearInterval(timer);
+  draw();
+}
+
+function touchHandle() {
+  // Duration can only be changed before the match has started (never
+  // started or fully reset) - not during a mid-match pause
+  if (isRunning || getElapsed() > 0) return;
+  setMinutes += 5;
+  if (setMinutes > 45) setMinutes = 10;
+  draw();
+}
+
+function buttonHandle() {
+  if (isRunning) {
+    elapsedBase += Date.now() - startTime;
     isRunning = false;
-    finished = true;
-    Bangle.buzz();
+    if (drawTimer) {
+      clearInterval(drawTimer);
+      drawTimer = null;
     }
-}
-
-function touchHandle()
-{
-  print("Screen Tap");
-  if(!isRunning){
-    setMinutes+=5;
-    if(setMinutes > 45) setMinutes = 10;
-    remaining = setMinutes * 60;
-    elapsed = 0;
-    draw();
-  }
-}
-
-function buttonHandle()
-{
-  print("Button Pressed");
-  if(isRunning){
-    clearInterval(timer);
-    isRunning = false;
-  }
-  else {
-    timer = setInterval(tick, 1000);
+  } else {
+    startTime = Date.now();
     isRunning = true;
+    if (!drawTimer) drawTimer = setInterval(tick, 1000);
   }
+  draw();
 }
 
-function drawAR1()
-{
+function drawAR1() {
   // Draw "AR1" in top-left
-  g.setFont("6x8", 3); // Small font, doubled size
+  g.setFont("6x8", 3);
   g.setFontAlign(-1, -1); // Align top-left
-  g.drawString("AR1", 5, 5);
+  g.setColor("#000");
+  g.drawString("AR1", AR1_X, 5);
+}
+
+function drawAR2() {
+  // Draw "AR2" in top-right
+  g.setFont("6x8", 3);
+  g.setFontAlign(1, -1); // Align top-right
+  g.setColor("#000");
+  g.drawString("AR2", g.getWidth() - 5, 5);
 }
 
 function flashAR1(state) {
-  const x = 5, y = 5;
+  const x = AR1_X, y = 5;
   const text = "AR1";
   const scale = 3;
 
@@ -158,35 +154,37 @@ function flashAR2(state) {
 }
 
 function startFlashingAR(AR) {
-  let state = false;
+  const idx = AR - 1;
+  if (flashTimers[idx]) return; // already flashing
+  let state = true;
   let count = 0;
-  const maxFlashes = 3000 / 500; // 15 flashes (every 200ms for 3s)
+  const maxFlashes = 6; // 3s at 500ms per state change
 
-  const interval = setInterval(() => {
-    if      (AR == 1) flashAR1(state);
-    else if (AR == 2) flashAR2(state);
+  flashTimers[idx] = setInterval(() => {
+    if (AR == 1) flashAR1(state);
+    else flashAR2(state);
     state = !state;
     count++;
     if (count >= maxFlashes) {
-      clearInterval(interval);
+      clearInterval(flashTimers[idx]);
+      flashTimers[idx] = null;
+      // restore the normal label
+      g.setColor("#fff");
+      if (AR == 1) {
+        g.fillRect(AR1_X, 5, AR1_X + g.stringWidth("AR1"), 5 + 24);
+        drawAR1();
+      } else {
+        g.fillRect(g.getWidth() - 5 - g.stringWidth("AR2"), 5, g.getWidth() - 5, 5 + 24);
+        drawAR2();
+      }
     }
   }, 500);
 }
 
-function drawAR2()
-{
-  // Draw "AR2" in top-right
-  g.setFont("6x8", 3); // Small font, doubled size
-  g.setFontAlign(1, -1); // Align top-right
-  g.drawString("AR2", g.getWidth() - 5, 5);
-}
-
-// Top-level (outside initScan)
-let seenAddrs = []; // list of unique MACs we've seen
-
 function normMac(id) {
   // setScan gives d.id as the advertiser address; keep it robust if suffix exists
-  return (id || "").split(" ")[0];
+  if ("string" != typeof id) return "";
+  return id.split(" ")[0];
 }
 
 // Double-tap pattern for "added"
@@ -203,111 +201,115 @@ let lastBuzzAt = 0;
 
 function buzzAllowed(fn) {
   const now = Date.now();
-  if (now - lastBuzzAt < BUZZ_COOLDOWN_MS) return;
+  if (now - lastBuzzAt < BUZZ_COOLDOWN_MS) return false;
   lastBuzzAt = now;
   fn();
+  return true;
 }
+
 // AR1: long alert
 function buzzKnownAR1() {
   Bangle.buzz(BUZZ_KNOWN_MS, 1);
 }
 
-// AR2: 15 very short taps
+// AR2: burst of very short taps
 function buzzKnownAR2() {
   let count = 0;
   const taps = 20;
 
-  const i = setInterval(() => {
+  if (buzzTimer) clearInterval(buzzTimer);
+  buzzTimer = setInterval(() => {
     Bangle.buzz(60, 1);
     count++;
-    if (count >= taps) clearInterval(i);
+    if (count >= taps) {
+      clearInterval(buzzTimer);
+      buzzTimer = null;
+    }
   }, 120); // short gap between taps
 }
 
 function initScan() {
+  NRF.setScan(); // ensure only one scan is active
 
-  function start() {
-    NRF.setScan(); // ensure only one scan is active
+  // Espruino runs this callback from the event loop, so it is not
+  // reentrant and needs no locking
+  NRF.setScan(function (d) {
+    const mac = normMac(d && d.id);
+    if (!mac) return; // malformed/empty advertisement
 
-    NRF.setScan(function (d) {
-      if(lock) return;
-      lock = true;
-      const mac = normMac(d.id);
-      if (!mac) return;
+    // If it's one of our saved devices, alert + flash its AR label
+    if (mac === AR1addr) {
+      if (buzzAllowed(buzzKnownAR1)) startFlashingAR(1);
+      return;
+    }
+    if (mac === AR2addr) {
+      if (buzzAllowed(buzzKnownAR2)) startFlashingAR(2);
+      return;
+    }
 
-      // If it's one of our saved devices, do the long alert
-      if (mac === AR1addr)
-      {
-        buzzAllowed(buzzKnownAR1);
-        AR1flash = true;
-        lock=false;
-        return;
-      }
-      else if (mac === AR2addr) {
-        buzzAllowed(buzzKnownAR2);
-        AR2flash = true;
-        lock=false;
-        return;
-      }
-
-       // New devices
-      if (!AR1addr) {
-        AR1addr = mac;
-        if (seenAddrs.indexOf(mac) === -1) seenAddrs.push(mac);
-
-        lastBuzzAt = Date.now(); // suppress immediate known-buzz
-        buzzAdded();
-        draw();
-        lock=false;
-        return;
-      }
-
-      if (!AR2addr) {
-        AR2addr = mac;
-        if (seenAddrs.indexOf(mac) === -1) seenAddrs.push(mac);
-
-        lastBuzzAt = Date.now(); // suppress immediate known-buzz
-        buzzAdded();
-        draw();
-        lock = false;
-        return;
-      } 
-      lock=false;
-
-      // Third unique device: ignore
-    }, {
-      phy: "coded",
-      active: false, // passive scan
-      filters: [{
-        services: [pag_svc]
-      }]
-    });
-  }
-
-  start();
+    // New devices
+    if (!AR1addr) {
+      AR1addr = mac;
+      lastBuzzAt = Date.now(); // suppress immediate known-buzz
+      buzzAdded();
+      draw();
+      return;
+    }
+    if (!AR2addr) {
+      AR2addr = mac;
+      lastBuzzAt = Date.now(); // suppress immediate known-buzz
+      buzzAdded();
+      draw();
+      return;
+    }
+    // Third unique device: ignore
+  }, {
+    phy: "coded", // needs firmware 2v26+; extended is enabled automatically
+    active: false, // passive scan
+    filters: [{
+      services: [pag_svc]
+    }]
+  });
 }
 
+function cleanup() {
+  if (drawTimer) {
+    clearInterval(drawTimer);
+    drawTimer = null;
+  }
+  if (buzzTimer) {
+    clearInterval(buzzTimer);
+    buzzTimer = null;
+  }
+  flashTimers.forEach((t, i) => {
+    if (t) {
+      clearInterval(t);
+      flashTimers[i] = null;
+    }
+  });
+  isRunning = false;
+  NRF.setScan(); // stop scanning
+  // setLCDTimeout(0) keeps the screen on - restore the user's setting
+  Bangle.setLCDTimeout((require("Storage").readJSON("setting.json", 1) || {}).timeout || 10);
+}
 
-function initUI()
-{
+function initUI() {
   g.clear();
-  Bangle.setUI();
   Bangle.setUI({
-      mode:"custom",
-      btn: function() {
-        buttonHandle();
-      },
-      touch: function(zone, e) {
-        touchHandle();
-      }
+    mode: "custom",
+    back: function () { // top-left exit icon; coexists with btn
+      cleanup();
+      load();
+    },
+    btn: buttonHandle,
+    touch: touchHandle,
+    remove: cleanup
   });
   draw();
 }
 
 // --- Initialize ---
 initUI();
-//Bangle.setLCDPower(1);
-Bangle.setLCDTimeout(0);
+Bangle.setLCDTimeout(0); // keep the screen on during the match
 NRF.setTxPower(8);
 initScan();
-//load("rareBit.app.js");

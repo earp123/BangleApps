@@ -19,7 +19,17 @@ const exemptionsFilePath = "../apps/lint_exemptions.js";
 const exemptions = (await import(exemptionsFilePath)).default;
 
 for (const filePath of Object.keys(exemptions)) {
-  const fileContents = await fs.readFile(filePath, "utf8");
+  let fileContents;
+  try {
+    fileContents = await fs.readFile(filePath, "utf8");
+  } catch (e) {
+    if (e.code !== "ENOENT") throw e;
+    delete exemptions[filePath];
+    console.log(
+      `! Removed lint exemptions for '${filePath}' because it no longer exists`,
+    );
+    continue;
+  }
   const currentHash = await hashContents(fileContents);
   if (exemptions[filePath].hash !== currentHash) {
     delete exemptions[filePath];

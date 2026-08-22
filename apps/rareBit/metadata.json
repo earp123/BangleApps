@@ -1,12 +1,14 @@
 {
   "id": "rareBit",
   "name": "rareBit",
-  "version": "0.10",
+  "version": "0.11",
   "description": "Referee App for rareBit Flag integration and match timers",
   "icon": "rareBit.png",
-  "src": "rareBit.app.js",
+  "tags": "tool,bluetooth,timer",
   "supports": ["BANGLEJS2"],
+  "readme": "README.md",
   "storage": [
-    {"name":"rarebit.app.js","url":"rareBit.img"}
+    {"name":"rareBit.app.js","url":"rareBit.app.js"},
+    {"name":"rareBit.img","url":"rareBit.img","evaluate":true}
   ]
 }

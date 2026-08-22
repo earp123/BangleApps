@@ -506,6 +506,7 @@ while(fileA=allFiles.pop()) {
 // Check each locale in the `locale` app.
 sanityCheckLocales();
 function sanityCheckLocales(){
+  if (!fs.existsSync(APPSDIR+"locale")) return; // locale app not present (restricted app set)
   const { CODEPAGE_CONVERSIONS } = require("../core/js/utils");
   const { checkLocales } = require("../apps/locale/sanitycheck");
   const localesCode = fs.readFileSync(__dirname+'/../apps/locale/locales.js', 'utf-8');
