@@ -30,3 +30,33 @@ Changed for individual apps are listed in `apps/appname/ChangeLog`
 * Provide a proper error message in case JSON decode fails
 * Check you're connecting with a Bangle.js of the correct version
 * Allow 'data' style app files to be uploaded with the app (and switch over settings files for various apps)
+
+rareBit fork
+------------
+
+2026-08-22
+
+* rareBit 0.11: fixed the loader install path so the app source actually ships
+  (the old storage block uploaded raw image data under a wrong-case name);
+  regenerated `rareBit.img` as a proper heatshrink-compressed JS icon; added
+  per-app ChangeLog and README (2v26+ firmware requirement, scan power draw)
+* rareBit 0.11 app fixes: timestamp-based match timing (no drift across
+  pause/resume), tap can no longer reset the clocks mid-match, count-up
+  continues past 00:00 as stoppage time with a single full-time buzz, scan
+  callback lock leak removed (scanner no longer goes permanently silent),
+  AR1/AR2 flash indicators wired to recognised flags, clean exit via the
+  back icon (clears intervals, stops the scan, restores LCD timeout)
+* Loader now serves the Desktop Launcher (`dtlaunch`) and Bluetooth widget
+  (`widbt`); `Install default apps` fixed to install only apps this loader
+  actually carries (it previously always failed with "Not all apps found")
+* Updated `core` (EspruinoAppLoaderCore) and `webtools` (uart.js 1.14 → 1.27)
+  submodules to the commits current upstream BangleApps pins, for firmware
+  2v29 support; merged upstream index.html/loader.js changes while keeping
+  the rareBit theme
+* Removed `renderCustomTabs`, which threw `AppLibrary is not defined` on
+  every page load
+* Repo tooling made to pass on this restricted fork: sanitycheck skips the
+  absent locale app, lint-exemption sync prunes entries for removed apps
+* Known issue: if connecting sticks at "Getting device info", connect once
+  with the Web IDE (espruino.com/ide), disconnect, then retry the loader
+  (see https://github.com/orgs/espruino/discussions/7042)
