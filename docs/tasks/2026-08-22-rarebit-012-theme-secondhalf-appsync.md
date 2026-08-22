@@ -14,11 +14,11 @@ Trello refs: "Reconcile Global Dark theme setting", "Second half interval", "Kee
 
 Behavior (only while idle, i.e. timer not started/reset state):
 
-- Tap on the **count-up (elapsed)** display: add the currently selected interval to the preloaded elapsed time. E.g. interval 45 → first tap 00:00 → 45:00.
+- Tap on the **count-up (elapsed)** display: **toggle** the preloaded elapsed time between 00:00 and the currently selected interval. E.g. interval 45: tap → 45:00, tap again → 00:00. Additional taps never accumulate.
 - Tap on the **countdown (interval)** display: unchanged — cycles interval selection.
 - Requires tap-zone hit testing on touch y-coordinate; keep zones generous and non-overlapping.
 - Starting the match runs the countdown normally; elapsed continues from the preload (45:00 → 90:00 for a second half).
-- **Default decision (flagged):** taps stack (00→45→90, useful for ET) and wrap back to 00:00 once the preload would exceed 90:00. Change if unwanted.
+- Changing the selected interval while a preload is active updates the preload to the new interval.
 - Update `apps/rareBit/README.md` controls section; add ChangeLog entry.
 
 ## 3. Served-app sync tooling — `bin/sync-upstream-apps.mjs`
