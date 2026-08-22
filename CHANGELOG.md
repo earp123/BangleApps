@@ -60,3 +60,51 @@ rareBit fork
 * Known issue: if connecting sticks at "Getting device info", connect once
   with the Web IDE (espruino.com/ide), disconnect, then retry the loader
   (see https://github.com/orgs/espruino/discussions/7042)
+
+2026-08-22 (later)
+
+* rareBit 0.12: the app now follows the global Dark/Light theme — every colour
+  comes from `g.theme`, read at draw time, and the screen is cleared with the
+  theme background. The AR flash indicator uses a theme-relative accent
+  (yellow on dark, blue on light) rather than a hardcoded black/white invert;
+  both give ≥8:1 contrast against the screen background in their theme. The
+  settings app reloads the running app on a theme change, so no live listener
+  is needed (noted in a code comment).
+* rareBit 0.12: second-half preload. While idle, tapping the count-up (elapsed)
+  display toggles it between 00:00 and the selected interval — repeated taps
+  never stack — and tapping the countdown still cycles the interval, now via
+  y-coordinate tap zones (top 40 px reserved for the AR labels, countdown zone
+  below it, count-up zone from y=124 down). Match time and displayed elapsed
+  time are now tracked separately, so a 45:00 preload still runs a full 45 min
+  countdown and the count-up finishes a second half at 90:00. Changing the
+  interval while a preload is showing updates the preload to match. The 0.11
+  guard still holds: neither tap does anything once the match has started.
+* New `bin/sync-upstream-apps.mjs`: reports and pulls upstream versions of the
+  seven auxiliary apps this loader serves, deriving each app's file list from
+  its upstream `metadata.json` over raw.githubusercontent (no GitHub API or
+  full clone), and syncing the `modules/` files those apps `require()`.
+  `rareBit` is never touched. Documented in `docs/sync-upstream-apps.md`.
+* Ran the sync: `boot` 0.65→0.69, `dtlaunch` 0.28→0.29, `antonclk` 0.11→0.12,
+  `setting` 0.78→0.84, `widbt` 0.09→0.10, `widlock` 0.08→0.09, `widid`
+  0.03→0.04, plus the new `modules/launch_utils.js` that `dtlaunch` 0.29
+  requires. All 8 served apps still resolve cleanly (every storage file
+  present, no duplicate names for BANGLEJS2, no unresolved module or app
+  dependencies); sanitycheck and both lint runs are clean.
+* `bin/sanitycheck.js` refreshed from upstream — the updated aux apps use
+  metadata the fork's older copy rejected (`author`, `requires_firmware`,
+  `BANGLEJS3`, `BANGLEJS3_COMPAT`). The fork's local tweak (skip the locale
+  checks, since the restricted app set has no `locale` app) is re-applied.
+  `apps/rareBit/metadata.json` gained the now-required `author` field.
+
+Open items
+----------
+
+* rareBit 0.12 theme and flash rendering were **not** verified in the Bangle.js
+  emulator: `espruino.com` is unreachable from the sandbox this was built in,
+  so the emulator can't load. Verified instead by code inspection, a headless
+  run of the draw/timer/tap logic against a stubbed `Graphics`/`Bangle`, and a
+  contrast calculation for the flash colours in both themes. Worth an eyeball
+  in the emulator or on-device before release.
+* Scheduled GitHub Action to run `sync-upstream-apps.mjs` and open an auto-PR:
+  deferred, as noted in `docs/sync-upstream-apps.md`. Cadence stays manual —
+  run the script before each release.
