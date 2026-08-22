@@ -11,9 +11,19 @@ advertising is enabled automatically whenever the PHY is not `1mbps`.
 
 ## Usage
 
-- **Tap** the screen (before the match has started) to cycle the half length
-  in 5 minute steps (10–45 minutes). Once the timer has been started, tapping
-  no longer changes or resets the clocks.
+Both tap actions below only work while the app is idle (the match has never
+been started, or has been fully reset). Once the timer has been started,
+tapping no longer changes or resets the clocks.
+
+- **Tap the countdown** (the big clock in the middle) to cycle the half length
+  in 5 minute steps (10–45 minutes).
+- **Tap the count-up** (the small clock underneath) to toggle a **second-half
+  preload** between 00:00 and the currently selected interval — e.g. with 45
+  selected, one tap shows 45:00, another returns it to 00:00. Repeated taps
+  never stack. Start the match and the countdown runs the full interval as
+  usual while the count-up carries on from the preload, so a second half ends
+  at 90:00. Changing the interval while a preload is showing updates the
+  preload to match.
 - **Press the button** to start or pause the timer. Timing is derived from a
   start timestamp, so it stays accurate across pause/resume.
 - When the countdown reaches 00:00 the watch buzzes once and the count-up
@@ -23,6 +33,14 @@ advertising is enabled automatically whenever the PHY is not `1mbps`.
   per AR (long buzz for AR1, tap burst for AR2) and flashes its label.
 - Exit with the back icon in the top-left corner; this stops the timers and
   the BLE scan.
+
+## Theme
+
+The app follows the global Dark/Light theme from the Settings app — all text
+and backgrounds come from `g.theme`, read at draw time. The AR flash indicator
+uses a theme-relative accent (yellow on dark, blue on light) so a raised flag
+stays obvious either way. Changing the theme in Settings reloads the running
+app, so the new theme takes effect the next time rareBit is started.
 
 ## Power
 

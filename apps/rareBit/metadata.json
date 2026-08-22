@@ -1,7 +1,8 @@
 {
   "id": "rareBit",
   "name": "rareBit",
-  "version": "0.11",
+  "version": "0.12",
+  "author": "earp123",
   "description": "Referee App for rareBit Flag integration and match timers",
   "icon": "rareBit.png",
   "tags": "tool,bluetooth,timer",

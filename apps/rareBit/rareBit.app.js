@@ -7,8 +7,10 @@ const pag_svc = "23210001-28d5-4b7b-bad0-7dee1eee1b6d";
 
 let setMinutes = 45;
 let isRunning = false;
-let startTime = null;  // Date.now() when the timer was last (re)started
-let elapsedBase = 0;   // ms accumulated in previous run segments (for pause/resume)
+let hasStarted = false; // true once the match has been started at least once
+let startTime = null;   // Date.now() when the timer was last (re)started
+let runBase = 0;        // ms of match time accumulated in previous run segments
+let preloadMs = 0;      // elapsed time preloaded before kick-off (second half)
 let timeUpBuzzed = false;
 let drawTimer = null;
 let buzzTimer = null;
@@ -22,11 +24,33 @@ let AR2addr = null;
 
 // x position of the AR1 label - clear of the back icon in the top-left corner
 const AR1_X = 30;
+// Height of the AR label strip; nothing below it is part of a tap zone
+const TOP_H = 40;
+// Touches at or below this y hit the count-up (elapsed) display, above it
+// (but below TOP_H) they hit the countdown (interval) display
+const ELAPSED_ZONE_Y = 124;
 
-function getElapsed() {
-  let ms = elapsedBase;
+// Colours come from g.theme, read at draw time. The settings app reloads the
+// running app when the global theme changes, so no live listener is needed.
+function flashBg() { return g.theme.dark ? "#ff0" : "#00f"; }
+function flashFg() { return g.theme.dark ? "#000" : "#fff"; }
+
+// Match time only (drives the countdown) - excludes any preloaded elapsed time
+function getRunSecs() {
+  let ms = runBase;
   if (isRunning) ms += Date.now() - startTime;
   return Math.floor(ms / 1000);
+}
+
+// Total elapsed shown on the count-up clock (preload + match time)
+function getElapsed() {
+  return Math.floor(preloadMs / 1000) + getRunSecs();
+}
+
+// Idle means "never started or fully reset" - the only state in which the
+// interval and the second-half preload may be changed
+function isIdle() {
+  return !isRunning && !hasStarted;
 }
 
 function formatTime(secs) {
@@ -36,23 +60,23 @@ function formatTime(secs) {
 }
 
 function draw() {
-  let elapsed = getElapsed();
-  let remaining = setMinutes * 60 - elapsed;
+  let remaining = setMinutes * 60 - getRunSecs();
   if (remaining < 0) remaining = 0;
 
-  g.clearRect(0, 40, g.getWidth(), g.getHeight());
+  g.setBgColor(g.theme.bg);
+  g.clearRect(0, TOP_H, g.getWidth(), g.getHeight());
 
   // Count Down
   g.setFontAnton(1);
   g.setFontAlign(0, 0);
-  g.setColor("#000");
+  g.setColor(g.theme.fg);
   g.drawString(formatTime(remaining), g.getWidth() / 2, g.getHeight() / 2);
 
   // Count Up - keeps going past 00:00 (stoppage time)
   g.setFont("6x8", 4);
   g.setFontAlign(0, 0);
-  g.setColor("#000");
-  g.drawString(formatTime(elapsed), g.getWidth() / 2, g.getHeight() / 2 + 60);
+  g.setColor(g.theme.fg);
+  g.drawString(formatTime(getElapsed()), g.getWidth() / 2, g.getHeight() / 2 + 60);
 
   if (AR1addr != null && !AR1shown) {
     drawAR1();
@@ -65,25 +89,36 @@ function draw() {
 }
 
 function tick() {
-  if (isRunning && !timeUpBuzzed && getElapsed() >= setMinutes * 60) {
+  if (isRunning && !timeUpBuzzed && getRunSecs() >= setMinutes * 60) {
     timeUpBuzzed = true;
     Bangle.buzz(); // full time - the count-up carries on as stoppage time
   }
   draw();
 }
 
-function touchHandle() {
-  // Duration can only be changed before the match has started (never
+function touchHandle(_, xy) {
+  // The clocks can only be set up before the match has started (never
   // started or fully reset) - not during a mid-match pause
-  if (isRunning || getElapsed() > 0) return;
-  setMinutes += 5;
-  if (setMinutes > 45) setMinutes = 10;
+  if (!isIdle()) return;
+  const y = xy ? xy.y : 0;
+  if (y < TOP_H) return; // AR label strip - not a tap zone
+  if (y >= ELAPSED_ZONE_Y) {
+    // Count-up display: toggle the second-half preload on/off. Repeated taps
+    // never stack - it is either 00:00 or the selected interval.
+    preloadMs = preloadMs ? 0 : setMinutes * 60000;
+  } else {
+    // Countdown display: cycle the half length
+    setMinutes += 5;
+    if (setMinutes > 45) setMinutes = 10;
+    // Keep an active preload in step with the newly selected interval
+    if (preloadMs) preloadMs = setMinutes * 60000;
+  }
   draw();
 }
 
 function buttonHandle() {
   if (isRunning) {
-    elapsedBase += Date.now() - startTime;
+    runBase += Date.now() - startTime;
     isRunning = false;
     if (drawTimer) {
       clearInterval(drawTimer);
@@ -92,6 +127,7 @@ function buttonHandle() {
   } else {
     startTime = Date.now();
     isRunning = true;
+    hasStarted = true;
     if (!drawTimer) drawTimer = setInterval(tick, 1000);
   }
   draw();
@@ -101,7 +137,7 @@ function drawAR1() {
   // Draw "AR1" in top-left
   g.setFont("6x8", 3);
   g.setFontAlign(-1, -1); // Align top-left
-  g.setColor("#000");
+  g.setColor(g.theme.fg);
   g.drawString("AR1", AR1_X, 5);
 }
 
@@ -109,7 +145,7 @@ function drawAR2() {
   // Draw "AR2" in top-right
   g.setFont("6x8", 3);
   g.setFontAlign(1, -1); // Align top-right
-  g.setColor("#000");
+  g.setColor(g.theme.fg);
   g.drawString("AR2", g.getWidth() - 5, 5);
 }
 
@@ -124,12 +160,12 @@ function flashAR1(state) {
   const w = g.stringWidth(text);
   const h = 8 * scale;
 
-  // Background
-  g.setColor(state ? "#000" : "#fff");
+  // Background - a theme-relative accent while lit, theme bg while dark
+  g.setColor(state ? flashBg() : g.theme.bg);
   g.fillRect(x, y, x + w, y + h);
 
   // Text
-  g.setColor(state ? "#fff" : "#000");
+  g.setColor(state ? flashFg() : g.theme.fg);
   g.drawString(text, x, y);
 }
 
@@ -144,12 +180,12 @@ function flashAR2(state) {
   const x = g.getWidth() - 5;
   const y = 5;
 
-  // Background
-  g.setColor(state ? "#000" : "#fff");
+  // Background - a theme-relative accent while lit, theme bg while dark
+  g.setColor(state ? flashBg() : g.theme.bg);
   g.fillRect(x - w, y, x, y + h);
 
   // Text
-  g.setColor(state ? "#fff" : "#000");
+  g.setColor(state ? flashFg() : g.theme.fg);
   g.drawString(text, x, y);
 }
 
@@ -169,7 +205,7 @@ function startFlashingAR(AR) {
       clearInterval(flashTimers[idx]);
       flashTimers[idx] = null;
       // restore the normal label
-      g.setColor("#fff");
+      g.setColor(g.theme.bg);
       if (AR == 1) {
         g.fillRect(AR1_X, 5, AR1_X + g.stringWidth("AR1"), 5 + 24);
         drawAR1();
@@ -294,7 +330,7 @@ function cleanup() {
 }
 
 function initUI() {
-  g.clear();
+  g.clear(1); // reset graphics state to the current global theme
   Bangle.setUI({
     mode: "custom",
     back: function () { // top-left exit icon; coexists with btn
